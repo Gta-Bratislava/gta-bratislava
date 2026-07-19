@@ -51,6 +51,8 @@ img { max-width: 100%; }
 .admin-theme .field { border-color: #c9cac3; background: #fff; color: #111310; color-scheme: light; }
 .admin-theme .bg-paper { background-color: #ecebe5; }
 .admin-theme .btn-dark { border-color: #111310; background: #111310; color: #fff; }
+.admin-scroll { scrollbar-width: none; }
+.admin-scroll::-webkit-scrollbar { display: none; }
 .reveal { animation: reveal .7s ease both; }
 @keyframes reveal { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }

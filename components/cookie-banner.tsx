@@ -9,7 +9,7 @@ export function CookieBanner({ locale }: { locale: Locale }) {
   const d = getDictionary(locale);
   const [visible, setVisible] = useState(false);
   useEffect(() => { const timer = window.setTimeout(() => setVisible(!localStorage.getItem("gta-cookie-consent")), 0); return () => window.clearTimeout(timer); }, []);
-  const choose = (value: "accepted" | "essential") => { localStorage.setItem("gta-cookie-consent", value); setVisible(false); };
+  const choose = (value: "accepted" | "essential") => { localStorage.setItem("gta-cookie-consent", value); if (value === "accepted") window.dispatchEvent(new Event("gta-analytics-consent")); setVisible(false); };
   if (!visible) return null;
   return (
     <aside className="fixed bottom-4 left-4 right-4 z-[60] mx-auto max-w-3xl rounded-2xl border border-white/10 bg-ink p-5 text-paper shadow-2xl" aria-label="Cookie preferences">

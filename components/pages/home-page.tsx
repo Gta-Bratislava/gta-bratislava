@@ -1,9 +1,9 @@
 import { ArrowRight, BadgeCheck, CarFront, Check, FileCheck2, HandCoins, MapPin, Phone, SearchCheck } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { ContactForm } from "@/components/forms/contact-form";
 import { FeaturedCarsClient } from "@/components/featured-cars-client";
 import { LiveHeroCopy } from "@/components/live-hero-copy";
+import { LiveHeroVisual } from "@/components/live-hero-visual";
 import { SectionHeading } from "@/components/section-heading";
 import { financingInfo, servicePackages } from "@/data/business-info";
 import { demoCars } from "@/data/cars";
@@ -39,7 +39,7 @@ export function HomePage({ locale }: { locale: Locale }) {
           <div className="relative mx-auto aspect-square w-full max-w-[590px]">
             <div className="absolute inset-[7%] rounded-full bg-[#df277f]/30 blur-[60px]" />
             <div className="absolute inset-4 overflow-hidden rounded-full border border-acid/50 shadow-[0_0_70px_rgba(157,222,24,.14)]">
-              <Image src="/brand/gta-bratislava-logo.jpg" alt="GTA Bratislava — Grand the Auto" fill priority sizes="(max-width: 1024px) 90vw, 46vw" className="object-cover" />
+              <LiveHeroVisual />
             </div>
           </div>
         </div>

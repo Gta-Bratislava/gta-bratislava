@@ -3,10 +3,11 @@
 import { Loader2, ShieldCheck } from "lucide-react";
 import { FormEvent, useRef, useState } from "react";
 import { getDictionary } from "@/lib/i18n";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 import { rememberSubmission, submissionIsCoolingDown, submitFinancing } from "@/lib/supabase-browser";
 import type { Locale } from "@/lib/types";
 
-export function FinancingForm({ locale, initialCarPrice }: { locale: Locale; initialCarPrice?: number }) {
+export function FinancingForm({ locale, initialCarPrice, carSlug }: { locale: Locale; initialCarPrice?: number; carSlug?: string }) {
   const d = getDictionary(locale);
   const started = useRef(0);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -35,6 +36,7 @@ export function FinancingForm({ locale, initialCarPrice }: { locale: Locale; ini
         consent: true,
       });
       rememberSubmission("financing");
+      void trackAnalyticsEvent("lead_submit", locale, carSlug);
       form.reset();
       setStatus("success");
     } catch { setStatus("error"); }

@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Car, FinancingRecord, LeadRecord, Locale } from "@/lib/types";
+import type { Car, FinancingRecord, LeadRecord, Locale, SiteSettings } from "@/lib/types";
 
 export type AdminApplication = Record<string, unknown> & {
   id: string;
@@ -32,9 +32,9 @@ export function getSupabaseBrowserClient() {
 export async function loadPublicCars(): Promise<Car[]> {
   const db = getSupabaseBrowserClient();
   if (!db) return [];
-  const { data, error } = await db.from("cars").select("data").order("updated_at", { ascending: false });
+  const { data, error } = await db.from("cars").select("data,status,price,sort_order,featured,is_new,good_price,updated_at").order("sort_order", { ascending: true });
   if (error) throw error;
-  return (data ?? []).map((row) => row.data as Car);
+  return (data ?? []).map((row) => ({ ...(row.data as Car), status: row.status as Car["status"], price: Number(row.price), sortOrder: row.sort_order, featured: row.featured, isNew: row.is_new, goodPrice: row.good_price, updatedAt: row.updated_at }));
 }
 
 export async function loadPublicCar(slug: string): Promise<Car | null> {
@@ -51,6 +51,14 @@ export async function loadPublicContent(locale: Locale): Promise<Record<string, 
   const { data, error } = await db.from("site_content").select("content").eq("locale", locale).maybeSingle();
   if (error) throw error;
   return (data?.content ?? {}) as Record<string, string>;
+}
+
+export async function loadPublicSettings(): Promise<SiteSettings | null> {
+  const db = getSupabaseBrowserClient();
+  if (!db) return null;
+  const { data, error } = await db.from("site_settings").select("*").eq("id", true).maybeSingle();
+  if (error) throw error;
+  return data as SiteSettings | null;
 }
 
 export async function submitLead(record: LeadRecord) {

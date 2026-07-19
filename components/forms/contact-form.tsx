@@ -3,6 +3,7 @@
 import { Loader2, Send } from "lucide-react";
 import { FormEvent, useRef, useState } from "react";
 import { getDictionary } from "@/lib/i18n";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 import { rememberSubmission, submissionIsCoolingDown, submitLead } from "@/lib/supabase-browser";
 import type { Locale } from "@/lib/types";
 
@@ -38,6 +39,7 @@ export function ContactForm({ locale, type = "contact", carSlug, service, compac
         consent: true,
       });
       rememberSubmission(`lead-${type}`);
+      void trackAnalyticsEvent("lead_submit", locale, carSlug);
       form.reset();
       setStatus("success");
     } catch { setStatus("error"); }

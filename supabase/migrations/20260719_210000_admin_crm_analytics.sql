@@ -1,0 +1,534 @@
+-- GTA_Bratislava: non-destructive admin, CRM, calendar and analytics extension.
+-- Run after the original supabase/schema.sql. Existing rows are preserved.
+begin;
+
+do $$ begin
+  create type public.admin_role as enum ('owner', 'manager', 'content_manager', 'viewer');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type public.crm_status as enum ('new', 'contacted', 'appointment', 'thinking', 'financing', 'reserved', 'completed', 'rejected');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type public.appointment_status as enum ('scheduled', 'completed', 'cancelled');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type public.analytics_event_type as enum ('view', 'whatsapp_click', 'lead_submit');
+exception when duplicate_object then null; end $$;
+
+alter table public.admins add column if not exists role public.admin_role not null default 'owner';
+alter table public.admins add column if not exists display_name text;
+alter table public.admins add column if not exists email text;
+alter table public.admins add column if not exists is_active boolean not null default true;
+alter table public.admins add column if not exists updated_at timestamptz not null default now();
+alter table public.admins alter column role set default 'viewer';
+
+alter table public.cars drop constraint if exists cars_status_check;
+alter table public.cars add constraint cars_status_check check (status in ('draft','available','reserved','sold','hidden')) not valid;
+alter table public.cars validate constraint cars_status_check;
+alter table public.cars add column if not exists sort_order integer not null default 0;
+alter table public.cars add column if not exists featured boolean not null default false;
+alter table public.cars add column if not exists is_new boolean not null default false;
+alter table public.cars add column if not exists good_price boolean not null default false;
+alter table public.cars add column if not exists published_at timestamptz;
+
+update public.cars
+set featured = coalesce((data->>'featured')::boolean, featured),
+    is_new = coalesce((data->>'isNew')::boolean, is_new),
+    good_price = coalesce((data->>'goodPrice')::boolean, good_price)
+where data is not null;
+
+with ranked as (
+  select id, row_number() over (order by updated_at desc, created_at desc) * 10 as position
+  from public.cars
+)
+update public.cars set sort_order = ranked.position
+from ranked where public.cars.id = ranked.id and public.cars.sort_order = 0;
+
+alter table public.leads add column if not exists crm_status public.crm_status not null default 'new';
+alter table public.leads add column if not exists assigned_to uuid references public.admins(id) on delete set null;
+alter table public.leads add column if not exists manager_notes text;
+alter table public.leads add column if not exists last_contacted_at timestamptz;
+alter table public.leads add column if not exists updated_at timestamptz not null default now();
+
+alter table public.financing_applications add column if not exists crm_status public.crm_status not null default 'new';
+alter table public.financing_applications add column if not exists assigned_to uuid references public.admins(id) on delete set null;
+alter table public.financing_applications add column if not exists manager_notes text;
+alter table public.financing_applications add column if not exists last_contacted_at timestamptz;
+alter table public.financing_applications add column if not exists updated_at timestamptz not null default now();
+
+alter table public.site_content add column if not exists seo_title text;
+alter table public.site_content add column if not exists seo_description text;
+alter table public.site_content add column if not exists updated_by uuid references public.admins(id) on delete set null;
+
+create table if not exists public.appointments (
+  id uuid primary key default gen_random_uuid(),
+  application_source text check (application_source is null or application_source in ('lead','financing')),
+  application_id uuid,
+  client_name text not null check (char_length(client_name) between 2 and 150),
+  client_phone text not null check (char_length(client_phone) between 7 and 30),
+  car_id text references public.cars(id) on delete set null,
+  starts_at timestamptz not null,
+  duration_minutes integer not null default 60 check (duration_minutes between 15 and 480),
+  location text not null check (char_length(location) between 2 and 300),
+  comment text check (comment is null or char_length(comment) <= 3000),
+  status public.appointment_status not null default 'scheduled',
+  assigned_to uuid references public.admins(id) on delete set null,
+  created_by uuid references public.admins(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.application_status_history (
+  id bigint generated by default as identity primary key,
+  application_source text not null check (application_source in ('lead','financing')),
+  application_id uuid not null,
+  old_status public.crm_status,
+  new_status public.crm_status not null,
+  note text,
+  changed_by uuid references public.admins(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.car_price_history (
+  id bigint generated by default as identity primary key,
+  car_id text not null references public.cars(id) on delete cascade,
+  old_price numeric,
+  new_price numeric not null check (new_price >= 0),
+  changed_by uuid references public.admins(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.analytics_events (
+  id bigint generated by default as identity primary key,
+  event_type public.analytics_event_type not null,
+  car_slug text check (car_slug is null or char_length(car_slug) between 2 and 150),
+  locale text check (locale is null or locale in ('sk','ua','ru','en')),
+  session_key uuid,
+  event_date date not null default current_date,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.car_metrics (
+  car_slug text primary key,
+  view_count bigint not null default 0 check (view_count >= 0),
+  whatsapp_click_count bigint not null default 0 check (whatsapp_click_count >= 0),
+  lead_count bigint not null default 0 check (lead_count >= 0),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.site_settings (
+  id boolean primary key default true check (id = true),
+  phone text not null default '+421 949 711 370',
+  whatsapp text not null default '421949711370',
+  email text not null default 'info@gta-bratislava.sk',
+  address text not null default 'Bratislava, Slovensko',
+  hours text not null default 'Po–Pi 09:00–18:00 · So po dohode',
+  socials jsonb not null default '{"instagram":"https://instagram.com/","tiktok":"https://tiktok.com/","facebook":"https://facebook.com/","telegram":"https://t.me/"}'::jsonb,
+  hero_image_url text not null default '/brand/gta-bratislava-logo.jpg',
+  timezone text not null default 'Europe/Bratislava',
+  stale_car_days integer not null default 30 check (stale_car_days between 1 and 365),
+  updated_by uuid references public.admins(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+insert into public.site_settings (id) values (true) on conflict (id) do nothing;
+
+create table if not exists public.admin_audit_log (
+  id bigint generated by default as identity primary key,
+  actor_id uuid references public.admins(id) on delete set null,
+  action text not null,
+  entity_type text not null,
+  entity_id text,
+  details jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists cars_status_sort_idx on public.cars(status, sort_order, updated_at desc);
+create index if not exists leads_crm_idx on public.leads(crm_status, created_at desc);
+create index if not exists financing_crm_idx on public.financing_applications(crm_status, created_at desc);
+create index if not exists appointments_start_idx on public.appointments(starts_at, status);
+create index if not exists application_history_lookup_idx on public.application_status_history(application_source, application_id, created_at desc);
+create index if not exists price_history_car_idx on public.car_price_history(car_id, created_at desc);
+create index if not exists analytics_created_idx on public.analytics_events(created_at desc, event_type);
+create unique index if not exists analytics_daily_view_unique on public.analytics_events(car_slug, event_type, session_key, event_date)
+  where event_type = 'view' and session_key is not null and car_slug is not null;
+
+create or replace function public.current_admin_role()
+returns public.admin_role
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select role from public.admins where id = auth.uid() and is_active = true
+$$;
+
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists(select 1 from public.admins where id = auth.uid() and is_active = true)
+$$;
+
+create or replace function public.has_admin_role(variadic allowed public.admin_role[])
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(public.current_admin_role() = any(allowed), false)
+$$;
+
+revoke all on function public.current_admin_role() from public;
+revoke all on function public.is_admin() from public;
+revoke all on function public.has_admin_role(variadic public.admin_role[]) from public;
+grant execute on function public.current_admin_role() to authenticated;
+grant execute on function public.is_admin() to anon, authenticated;
+grant execute on function public.has_admin_role(variadic public.admin_role[]) to authenticated;
+
+create or replace function public.set_updated_at()
+returns trigger language plpgsql as $$
+begin new.updated_at = now(); return new; end $$;
+
+create or replace function public.record_car_price_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if old.price is distinct from new.price then
+    insert into public.car_price_history(car_id, old_price, new_price, changed_by)
+    values (new.id, old.price, new.price, auth.uid());
+  end if;
+  return new;
+end $$;
+
+create or replace function public.record_application_status_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if old.crm_status is distinct from new.crm_status then
+    insert into public.application_status_history(application_source, application_id, old_status, new_status, changed_by)
+    values (case when tg_table_name = 'leads' then 'lead' else 'financing' end, new.id, old.crm_status, new.crm_status, auth.uid());
+  end if;
+  return new;
+end $$;
+
+create or replace function public.enforce_car_role_changes()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if public.current_admin_role() = 'content_manager'::public.admin_role then
+    if tg_op = 'INSERT' and (
+      new.price <> 0 or new.status <> 'draft' or
+      coalesce(new.data->>'price','0') <> '0' or
+      coalesce(new.data->>'monthlyPrice','0') <> '0' or
+      coalesce(new.data->>'status','draft') <> 'draft' or
+      coalesce(new.data->>'financing','false') <> 'false'
+    ) then
+      raise exception 'Content managers can only create zero-price drafts';
+    end if;
+    if tg_op = 'UPDATE' and (
+      old.price is distinct from new.price or
+      old.status is distinct from new.status or
+      coalesce(old.data->>'price','') is distinct from coalesce(new.data->>'price','') or
+      coalesce(old.data->>'monthlyPrice','') is distinct from coalesce(new.data->>'monthlyPrice','') or
+      coalesce(old.data->>'status','') is distinct from coalesce(new.data->>'status','') or
+      coalesce(old.data->>'financing','') is distinct from coalesce(new.data->>'financing','')
+    ) then
+      raise exception 'Content managers cannot change price, status or financing terms';
+    end if;
+  end if;
+  return new;
+end $$;
+
+create or replace function public.protect_last_owner()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'DELETE' then
+    if old.role = 'owner' and old.is_active = true and
+       not exists(select 1 from public.admins where id <> old.id and role = 'owner' and is_active = true) then
+      raise exception 'At least one active owner is required';
+    end if;
+    return old;
+  end if;
+  if old.role = 'owner' and old.is_active = true and
+     (new.role <> 'owner' or new.is_active = false) and
+     not exists(select 1 from public.admins where id <> old.id and role = 'owner' and is_active = true) then
+      raise exception 'At least one active owner is required';
+  end if;
+  return new;
+end $$;
+
+create or replace function public.audit_admin_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'DELETE' then
+    insert into public.admin_audit_log(actor_id, action, entity_type, entity_id, details)
+    values (auth.uid(), 'delete', 'admin', old.id::text,
+      jsonb_build_object('old_role', old.role, 'old_active', old.is_active));
+    return old;
+  end if;
+  insert into public.admin_audit_log(actor_id, action, entity_type, entity_id, details)
+  values (auth.uid(), 'update', 'admin', new.id::text,
+    jsonb_build_object('old_role', old.role, 'new_role', new.role, 'old_active', old.is_active, 'new_active', new.is_active));
+  return new;
+end $$;
+
+drop trigger if exists cars_set_updated_at on public.cars;
+create trigger cars_set_updated_at before update on public.cars for each row execute function public.set_updated_at();
+drop trigger if exists leads_set_updated_at on public.leads;
+create trigger leads_set_updated_at before update on public.leads for each row execute function public.set_updated_at();
+drop trigger if exists financing_set_updated_at on public.financing_applications;
+create trigger financing_set_updated_at before update on public.financing_applications for each row execute function public.set_updated_at();
+drop trigger if exists appointments_set_updated_at on public.appointments;
+create trigger appointments_set_updated_at before update on public.appointments for each row execute function public.set_updated_at();
+drop trigger if exists settings_set_updated_at on public.site_settings;
+create trigger settings_set_updated_at before update on public.site_settings for each row execute function public.set_updated_at();
+drop trigger if exists admins_set_updated_at on public.admins;
+create trigger admins_set_updated_at before update on public.admins for each row execute function public.set_updated_at();
+drop trigger if exists cars_record_price on public.cars;
+create trigger cars_record_price after update of price on public.cars for each row execute function public.record_car_price_change();
+drop trigger if exists cars_enforce_role_changes on public.cars;
+create trigger cars_enforce_role_changes before insert or update on public.cars for each row execute function public.enforce_car_role_changes();
+drop trigger if exists leads_record_status on public.leads;
+create trigger leads_record_status after update of crm_status on public.leads for each row execute function public.record_application_status_change();
+drop trigger if exists financing_record_status on public.financing_applications;
+create trigger financing_record_status after update of crm_status on public.financing_applications for each row execute function public.record_application_status_change();
+drop trigger if exists admins_protect_last_owner on public.admins;
+create trigger admins_protect_last_owner before update or delete on public.admins for each row execute function public.protect_last_owner();
+drop trigger if exists admins_audit_change on public.admins;
+create trigger admins_audit_change after update or delete on public.admins for each row execute function public.audit_admin_change();
+
+create or replace function public.track_analytics_event(
+  p_event_type public.analytics_event_type,
+  p_car_slug text default null,
+  p_locale text default null,
+  p_session_key uuid default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare inserted_rows integer;
+begin
+  if p_car_slug is not null and char_length(p_car_slug) not between 2 and 150 then raise exception 'Invalid car slug'; end if;
+  if p_locale is not null and p_locale not in ('sk','ua','ru','en') then raise exception 'Invalid locale'; end if;
+  insert into public.analytics_events(event_type, car_slug, locale, session_key)
+  values (p_event_type, nullif(p_car_slug,''), nullif(p_locale,''), p_session_key)
+  on conflict do nothing;
+  get diagnostics inserted_rows = row_count;
+  if inserted_rows > 0 and p_car_slug is not null and p_car_slug <> '' then
+    insert into public.car_metrics(car_slug, view_count, whatsapp_click_count, lead_count)
+    values (
+      p_car_slug,
+      case when p_event_type = 'view' then 1 else 0 end,
+      case when p_event_type = 'whatsapp_click' then 1 else 0 end,
+      case when p_event_type = 'lead_submit' then 1 else 0 end
+    )
+    on conflict (car_slug) do update set
+      view_count = public.car_metrics.view_count + excluded.view_count,
+      whatsapp_click_count = public.car_metrics.whatsapp_click_count + excluded.whatsapp_click_count,
+      lead_count = public.car_metrics.lead_count + excluded.lead_count,
+      updated_at = now();
+  end if;
+end $$;
+
+revoke all on function public.track_analytics_event(public.analytics_event_type, text, text, uuid) from public;
+grant execute on function public.track_analytics_event(public.analytics_event_type, text, text, uuid) to anon, authenticated;
+
+create or replace function public.owner_add_admin_by_email(p_email text, p_role public.admin_role, p_display_name text default null)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare target_id uuid;
+begin
+  if not public.has_admin_role('owner'::public.admin_role) then raise exception 'Owner role required'; end if;
+  select id into target_id from auth.users where lower(email) = lower(trim(p_email)) limit 1;
+  if target_id is null then raise exception 'Create this user in Supabase Auth first'; end if;
+  insert into public.admins(id, role, display_name, email, is_active)
+  values (target_id, p_role, nullif(trim(p_display_name),''), lower(trim(p_email)), true)
+  on conflict (id) do update set role = excluded.role, display_name = excluded.display_name, email = excluded.email, is_active = true;
+  insert into public.admin_audit_log(actor_id, action, entity_type, entity_id, details)
+  values (auth.uid(), 'upsert', 'admin', target_id::text, jsonb_build_object('role', p_role, 'email', lower(trim(p_email))));
+  return target_id;
+end $$;
+
+revoke all on function public.owner_add_admin_by_email(text, public.admin_role, text) from public;
+grant execute on function public.owner_add_admin_by_email(text, public.admin_role, text) to authenticated;
+
+drop view if exists public.admin_applications;
+create view public.admin_applications with (security_invoker = true) as
+select
+  l.id, 'lead'::text as source_type, l.type::text as application_type, l.created_at, l.updated_at,
+  l.crm_status, l.assigned_to, l.manager_notes, l.name, l.phone, l.email, l.car_slug,
+  l.message, l.locale, to_jsonb(l) - array['id','created_at','updated_at','crm_status','assigned_to','manager_notes','name','phone','email','car_slug','message','locale'] as payload
+from public.leads l
+union all
+select
+  f.id, 'financing'::text, 'financing'::text, f.created_at, f.updated_at,
+  f.crm_status, f.assigned_to, f.manager_notes, concat_ws(' ',f.first_name,f.last_name), f.phone, f.email, null::text,
+  f.comment, f.locale, to_jsonb(f) - array['id','created_at','updated_at','crm_status','assigned_to','manager_notes','first_name','last_name','phone','email','comment','locale']
+from public.financing_applications f;
+
+alter table public.appointments enable row level security;
+alter table public.application_status_history enable row level security;
+alter table public.car_price_history enable row level security;
+alter table public.analytics_events enable row level security;
+alter table public.car_metrics enable row level security;
+alter table public.site_settings enable row level security;
+alter table public.admin_audit_log enable row level security;
+
+drop policy if exists "admins can view own record" on public.admins;
+drop policy if exists "owners can read admins" on public.admins;
+create policy "owners can read admins" on public.admins for select to authenticated
+  using (id = auth.uid() or public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role));
+drop policy if exists "owners can insert admins" on public.admins;
+create policy "owners can insert admins" on public.admins for insert to authenticated
+  with check (public.has_admin_role('owner'::public.admin_role));
+drop policy if exists "owners can update admins" on public.admins;
+create policy "owners can update admins" on public.admins for update to authenticated
+  using (public.has_admin_role('owner'::public.admin_role)) with check (public.has_admin_role('owner'::public.admin_role));
+drop policy if exists "owners can delete admins" on public.admins;
+create policy "owners can delete admins" on public.admins for delete to authenticated
+  using (public.has_admin_role('owner'::public.admin_role));
+
+drop policy if exists "public can read cars" on public.cars;
+drop policy if exists "public can read published cars" on public.cars;
+create policy "public can read published cars" on public.cars for select to anon, authenticated
+  using (status in ('available','reserved','sold'));
+drop policy if exists "admins can read cars" on public.cars;
+create policy "admins can read cars" on public.cars for select to authenticated using (public.is_admin());
+drop policy if exists "admins can insert cars" on public.cars;
+drop policy if exists "editors can insert cars" on public.cars;
+create policy "editors can insert cars" on public.cars for insert to authenticated
+  with check (public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role,'content_manager'::public.admin_role));
+drop policy if exists "admins can update cars" on public.cars;
+drop policy if exists "editors can update cars" on public.cars;
+create policy "editors can update cars" on public.cars for update to authenticated
+  using (public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role,'content_manager'::public.admin_role))
+  with check (public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role,'content_manager'::public.admin_role));
+drop policy if exists "admins can delete cars" on public.cars;
+drop policy if exists "owners can delete cars" on public.cars;
+create policy "owners can delete cars" on public.cars for delete to authenticated
+  using (public.has_admin_role('owner'::public.admin_role));
+
+drop policy if exists "admins can read leads" on public.leads;
+drop policy if exists "crm roles can read leads" on public.leads;
+create policy "crm roles can read leads" on public.leads for select to authenticated
+  using (public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role));
+drop policy if exists "crm roles can update leads" on public.leads;
+create policy "crm roles can update leads" on public.leads for update to authenticated
+  using (public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role))
+  with check (public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role));
+drop policy if exists "admins can delete leads" on public.leads;
+drop policy if exists "owners can delete leads" on public.leads;
+create policy "owners can delete leads" on public.leads for delete to authenticated
+  using (public.has_admin_role('owner'::public.admin_role));
+
+drop policy if exists "admins can read financing" on public.financing_applications;
+drop policy if exists "crm roles can read financing" on public.financing_applications;
+create policy "crm roles can read financing" on public.financing_applications for select to authenticated
+  using (public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role));
+drop policy if exists "crm roles can update financing" on public.financing_applications;
+create policy "crm roles can update financing" on public.financing_applications for update to authenticated
+  using (public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role))
+  with check (public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role));
+drop policy if exists "admins can delete financing" on public.financing_applications;
+drop policy if exists "owners can delete financing" on public.financing_applications;
+create policy "owners can delete financing" on public.financing_applications for delete to authenticated
+  using (public.has_admin_role('owner'::public.admin_role));
+
+drop policy if exists "admins can insert site content" on public.site_content;
+drop policy if exists "admins can update site content" on public.site_content;
+drop policy if exists "content roles can insert site content" on public.site_content;
+drop policy if exists "content roles can update site content" on public.site_content;
+create policy "content roles can insert site content" on public.site_content for insert to authenticated
+  with check (public.has_admin_role('owner'::public.admin_role,'content_manager'::public.admin_role));
+create policy "content roles can update site content" on public.site_content for update to authenticated
+  using (public.has_admin_role('owner'::public.admin_role,'content_manager'::public.admin_role))
+  with check (public.has_admin_role('owner'::public.admin_role,'content_manager'::public.admin_role));
+
+drop policy if exists "crm roles can read appointments" on public.appointments;
+drop policy if exists "crm roles can insert appointments" on public.appointments;
+drop policy if exists "crm roles can update appointments" on public.appointments;
+drop policy if exists "owners can delete appointments" on public.appointments;
+create policy "crm roles can read appointments" on public.appointments for select to authenticated
+  using (public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role));
+create policy "crm roles can insert appointments" on public.appointments for insert to authenticated
+  with check (public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role));
+create policy "crm roles can update appointments" on public.appointments for update to authenticated
+  using (public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role))
+  with check (public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role));
+create policy "owners can delete appointments" on public.appointments for delete to authenticated
+  using (public.has_admin_role('owner'::public.admin_role));
+
+drop policy if exists "crm roles can read application history" on public.application_status_history;
+drop policy if exists "admins can read price history" on public.car_price_history;
+drop policy if exists "admins can read analytics events" on public.analytics_events;
+drop policy if exists "admins can read car metrics" on public.car_metrics;
+drop policy if exists "public can read site settings" on public.site_settings;
+drop policy if exists "content roles can update site settings" on public.site_settings;
+drop policy if exists "owners can read audit log" on public.admin_audit_log;
+create policy "crm roles can read application history" on public.application_status_history for select to authenticated
+  using (public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role));
+create policy "admins can read price history" on public.car_price_history for select to authenticated using (public.is_admin());
+create policy "admins can read analytics events" on public.analytics_events for select to authenticated using (public.is_admin());
+create policy "admins can read car metrics" on public.car_metrics for select to authenticated using (public.is_admin());
+create policy "public can read site settings" on public.site_settings for select to anon, authenticated using (true);
+create policy "content roles can update site settings" on public.site_settings for update to authenticated
+  using (public.has_admin_role('owner'::public.admin_role,'content_manager'::public.admin_role))
+  with check (public.has_admin_role('owner'::public.admin_role,'content_manager'::public.admin_role));
+create policy "owners can read audit log" on public.admin_audit_log for select to authenticated
+  using (public.has_admin_role('owner'::public.admin_role));
+
+drop policy if exists "admins can upload car images" on storage.objects;
+drop policy if exists "admins can update car images" on storage.objects;
+drop policy if exists "admins can delete car images" on storage.objects;
+drop policy if exists "editors can upload car images" on storage.objects;
+drop policy if exists "editors can update car images" on storage.objects;
+drop policy if exists "editors can delete car images" on storage.objects;
+create policy "editors can upload car images" on storage.objects for insert to authenticated
+  with check (bucket_id = 'cars' and public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role,'content_manager'::public.admin_role));
+create policy "editors can update car images" on storage.objects for update to authenticated
+  using (bucket_id = 'cars' and public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role,'content_manager'::public.admin_role))
+  with check (bucket_id = 'cars' and public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role,'content_manager'::public.admin_role));
+create policy "editors can delete car images" on storage.objects for delete to authenticated
+  using (bucket_id = 'cars' and public.has_admin_role('owner'::public.admin_role,'manager'::public.admin_role,'content_manager'::public.admin_role));
+
+grant select, insert, update, delete on public.appointments to authenticated;
+grant select on public.application_status_history, public.car_price_history, public.analytics_events, public.car_metrics, public.admin_audit_log to authenticated;
+grant select, update on public.site_settings to authenticated;
+grant select on public.site_settings to anon;
+grant select on public.admin_applications to authenticated;
+grant select, insert, update, delete on public.admins to authenticated;
+grant update on public.leads, public.financing_applications to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
+
+commit;
