@@ -131,9 +131,6 @@ export interface FinancingCalculationInput {
   carPrice: number;
   downPaymentEur: number;
   termMonths: number;
-  annualInterestRate: number;
-  fixedFee: number;
-  percentFee: number;
 }
 
 export interface FinancingCalculation {
@@ -141,14 +138,8 @@ export interface FinancingCalculation {
   downPaymentEur: number;
   downPaymentPercent: number;
   financedAmount: number;
-  fees: number;
   monthlyPayment: number;
-  totalPayments: number;
-  overpayment: number;
   termMonths: number;
-  annualInterestRate: number;
-  fixedFee: number;
-  percentFee: number;
 }
 
 export interface GeneratedAd {

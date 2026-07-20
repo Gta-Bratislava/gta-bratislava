@@ -11,6 +11,11 @@ import { EmptyState, PageTitle, Panel, SelectField, StatusBadge, TextArea, forma
 const baseStatuses: CrmStatus[] = ["new", "contacted", "appointment", "thinking", "financing", "reserved", "completed", "rejected"];
 const financeStatuses: CrmStatus[] = ["new", "contacted", "documents_requested", "documents_received", "submitted", "decision_pending", "approved", "rejected", "contract_signed", "completed"];
 const statuses: CrmStatus[] = [...new Set([...baseStatuses, ...financeStatuses])];
+const hiddenLegacyFinancingFields = new Set(["interest_rate", "fixed_fee", "percent_fee", "estimated_total_payment", "estimated_overpayment", "calculator_payload"]);
+
+function visibleCrmPayload(payload: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(payload).filter(([key]) => !hiddenLegacyFinancingFields.has(key)));
+}
 
 export function CrmAdmin({ applications, admins, cars, role, onUpdated, setNotice }: { applications: CrmApplication[]; admins: AdminProfile[]; cars: Car[]; role: AdminRole; onUpdated: (application: CrmApplication) => void; setNotice: (message: string) => void }) {
   const [selected, setSelected] = useState<CrmApplication | null>(null);
@@ -50,7 +55,7 @@ export function CrmAdmin({ applications, admins, cars, role, onUpdated, setNotic
 }
 
 function ApplicationDrawer({ application, admins, role, close, saved, setNotice }: { application: CrmApplication; admins: AdminProfile[]; role: AdminRole; close: () => void; saved: (application: CrmApplication) => void; setNotice: (message: string) => void }) {
-  const [draft, setDraft] = useState(application);
+  const [draft, setDraft] = useState({ ...application, payload: visibleCrmPayload(application.payload) });
   const [history, setHistory] = useState<ApplicationStatusEvent[]>([]);
   const [busy, setBusy] = useState(false);
   const editable = can(role, "crm:edit");
@@ -80,6 +85,6 @@ function ApplicationDrawer({ application, admins, role, close, saved, setNotice 
 }
 
 function payloadLabel(key: string) {
-  const labels: Record<string, string> = { citizenship: "Гражданство", employment: "Занятость", monthly_income: "Ежемесячный доход", down_payment: "Первоначальный взнос", car_price: "Стоимость автомобиля", term_months: "Срок, месяцев", selected_car_id: "ID автомобиля", selected_car_slug: "Автомобиль", down_payment_percent: "Первоначальный взнос, %", interest_rate: "Процентная ставка", fixed_fee: "Фиксированная комиссия", percent_fee: "Процентная комиссия", financed_amount: "Сумма финансирования", estimated_monthly_payment: "Расчётный платёж", estimated_total_payment: "Общая сумма", estimated_overpayment: "Переплата", calculator_payload: "Параметры калькулятора", service: "Услуга", type: "Тип заявки", last_contacted_at: "Последний контакт", locale: "Язык", comment: "Комментарий" };
+  const labels: Record<string, string> = { citizenship: "Гражданство", employment: "Занятость", monthly_income: "Ежемесячный доход", down_payment: "Первоначальный взнос", car_price: "Стоимость автомобиля", term_months: "Срок, месяцев", selected_car_id: "ID автомобиля", selected_car_slug: "Автомобиль", down_payment_percent: "Первоначальный взнос, %", financed_amount: "Сумма финансирования", estimated_monthly_payment: "Расчётный платёж", service: "Услуга", type: "Тип заявки", last_contacted_at: "Последний контакт", locale: "Язык", comment: "Комментарий" };
   return labels[key] || "Дополнительное поле";
 }
