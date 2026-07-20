@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { adminOptionLabel } from "@/lib/admin-i18n";
 
 export function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <section className={`rounded-2xl border border-black/10 bg-white p-4 shadow-sm sm:p-5 ${className}`}>{children}</section>;
@@ -23,7 +24,7 @@ export function NumberField({ label, value, onChange, disabled = false, min }: {
 }
 
 export function SelectField({ label, value, values, onChange, disabled = false }: { label: string; value: string; values: readonly string[]; onChange: (value: string) => void; disabled?: boolean }) {
-  return <label className="label">{label}<select className="field disabled:cursor-not-allowed disabled:bg-black/5 disabled:text-black/45" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>{values.map((item) => <option key={item} value={item}>{item.replaceAll("_", " ")}</option>)}</select></label>;
+  return <label className="label">{label}<select className="field disabled:cursor-not-allowed disabled:bg-black/5 disabled:text-black/45" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>{values.map((item) => <option key={item} value={item}>{adminOptionLabel(item)}</option>)}</select></label>;
 }
 
 export function TextArea({ label, value, onChange, disabled = false, rows = 5, wide = true }: { label: string; value: string; onChange: (value: string) => void; disabled?: boolean; rows?: number; wide?: boolean }) {
@@ -36,13 +37,12 @@ export function Toggle({ label, checked, onChange, disabled = false }: { label: 
 
 export function StatusBadge({ value }: { value: string }) {
   const colors: Record<string, string> = { available: "bg-green-100 text-green-800", sold: "bg-slate-200 text-slate-700", reserved: "bg-amber-100 text-amber-800", draft: "bg-blue-100 text-blue-800", hidden: "bg-black/10 text-black/60", new: "bg-lime-100 text-lime-800", completed: "bg-green-100 text-green-800", rejected: "bg-red-100 text-red-800", cancelled: "bg-red-100 text-red-800", scheduled: "bg-blue-100 text-blue-800" };
-  return <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wide ${colors[value] || "bg-violet-100 text-violet-800"}`}>{value.replaceAll("_", " ")}</span>;
+  return <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wide ${colors[value] || "bg-violet-100 text-violet-800"}`}>{adminOptionLabel(value)}</span>;
 }
 
 export function formatAdminDate(value?: string | null, includeTime = true) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("sk-SK", includeTime ? { dateStyle: "medium", timeStyle: "short" } : { dateStyle: "medium" }).format(date);
+  return new Intl.DateTimeFormat("ru-RU", includeTime ? { dateStyle: "medium", timeStyle: "short" } : { dateStyle: "medium" }).format(date);
 }
-

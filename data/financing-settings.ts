@@ -1,0 +1,70 @@
+import type { FinancingSettings } from "../lib/types";
+
+export const defaultFinancingSettings: FinancingSettings = {
+  id: true,
+  enabled: true,
+  min_amount: 500,
+  max_amount: 19_500,
+  min_term: 12,
+  max_term: 96,
+  allowed_terms: [12, 24, 36, 48, 60, 72, 84, 96],
+  default_interest_rate: 7.9,
+  min_down_payment_eur: 0,
+  min_down_payment_percent: 0,
+  fixed_fee: 0,
+  percent_fee: 0,
+  localized: {
+    sk: {
+      title: "Financovanie vozidla bez zbytočných komplikácií",
+      description: "Vyberte si auto, vypočítajte si orientačnú mesačnú splátku a pošlite nám nezáväznú žiadosť. Pomôžeme vám skontrolovať podklady a sprevádzame vás celým procesom.",
+      warning: "Výpočet je orientačný a nepredstavuje ponuku ani záruku schválenia. Konečné podmienky určí finančná spoločnosť po posúdení žiadosti.",
+      documents: ["Doklad totožnosti alebo pobytová karta", "Doklad o príjme alebo pracovná zmluva", "Výpis z účtu za posledné 1–3 mesiace", "Údaje o vybranom vozidle", "Informácie o existujúcich úveroch, ak ich máte"],
+      steps: ["Vyberiete vozidlo a nastavíte orientačný výpočet.", "Odošlete kontaktné údaje bez citlivých dokumentov.", "Skontrolujeme s vami potrebné podklady.", "Finančná spoločnosť posúdi žiadosť a oznámi konečné podmienky."],
+      faq: [
+        { question: "Kto môže podať žiadosť?", answer: "Žiadosť môže podať klient s preukázateľným príjmom a pobytom alebo väzbou na Slovensko. Konečné posúdenie vykonáva finančná spoločnosť." },
+        { question: "Je výsledok kalkulačky záväzný?", answer: "Nie. Ide o orientačný výpočet; úrok, RPMN a podmienky sa môžu po posúdení zmeniť." },
+        { question: "Musím cez formulár posielať dokumenty?", answer: "Nie. Bežný formulár neprijíma citlivé dokumenty. Bezpečný spôsob odovzdania s vami dohodneme osobne." },
+      ],
+      applyButton: "Odoslať žiadosť",
+    },
+    ru: {
+      title: "Финансирование автомобиля без лишних сложностей",
+      description: "Выберите автомобиль, рассчитайте ориентировочный ежемесячный платёж и отправьте предварительную заявку. Мы поможем проверить данные и сопроводим вас на каждом этапе.",
+      warning: "Расчёт является ориентировочным и не является предложением или гарантией одобрения. Окончательные условия определяются финансовой компанией после рассмотрения заявки.",
+      documents: ["Удостоверение личности или карта ВНЖ", "Подтверждение дохода или трудовой договор", "Выписка по счёту за последние 1–3 месяца", "Данные выбранного автомобиля", "Информация о действующих кредитах, если они есть"],
+      steps: ["Вы выбираете автомобиль и настраиваете предварительный расчёт.", "Отправляете контактные данные без чувствительных документов.", "Мы вместе проверяем необходимые сведения.", "Финансовая компания рассматривает заявку и сообщает окончательные условия."],
+      faq: [
+        { question: "Кто может подать заявку?", answer: "Клиент с подтверждаемым доходом и проживанием или связью со Словакией. Окончательное решение принимает финансовая компания." },
+        { question: "Результат калькулятора окончательный?", answer: "Нет. Это ориентировочный расчёт; ставка, RPMN и условия могут измениться после рассмотрения." },
+        { question: "Нужно ли отправлять документы через форму?", answer: "Нет. Обычная форма не принимает чувствительные документы. Безопасный способ передачи мы согласуем отдельно." },
+      ],
+      applyButton: "Отправить заявку",
+    },
+    ua: {
+      title: "Фінансування автомобіля без зайвих складнощів",
+      description: "Оберіть авто, розрахуйте орієнтовний щомісячний платіж і надішліть попередню заявку. Ми допоможемо перевірити дані та супроводимо вас на кожному етапі.",
+      warning: "Розрахунок є орієнтовним і не є пропозицією або гарантією схвалення. Остаточні умови визначає фінансова компанія після розгляду заявки.",
+      documents: ["Посвідчення особи або карта ВНП", "Підтвердження доходу або трудовий договір", "Виписка з рахунку за останні 1–3 місяці", "Дані обраного автомобіля", "Інформація про чинні кредити, якщо вони є"],
+      steps: ["Ви обираєте автомобіль і налаштовуєте попередній розрахунок.", "Надсилаєте контактні дані без чутливих документів.", "Ми разом перевіряємо необхідні відомості.", "Фінансова компанія розглядає заявку та повідомляє остаточні умови."],
+      faq: [
+        { question: "Хто може подати заявку?", answer: "Клієнт із підтвердженим доходом і проживанням або зв’язком зі Словаччиною. Остаточне рішення приймає фінансова компанія." },
+        { question: "Результат калькулятора остаточний?", answer: "Ні. Це орієнтовний розрахунок; ставка, RPMN та умови можуть змінитися після розгляду." },
+        { question: "Чи треба надсилати документи через форму?", answer: "Ні. Звичайна форма не приймає чутливі документи. Безпечний спосіб передачі ми погодимо окремо." },
+      ],
+      applyButton: "Надіслати заявку",
+    },
+    en: {
+      title: "Straightforward vehicle financing",
+      description: "Choose a vehicle, estimate your monthly payment and send a preliminary application. We will help check the information and guide you through each step.",
+      warning: "The calculation is an estimate and does not constitute an offer or a guarantee of approval. Final terms are determined by the finance company after reviewing the application.",
+      documents: ["Identity document or residence card", "Proof of income or employment contract", "Bank statement for the last 1–3 months", "Details of the selected vehicle", "Information about current loans, if any"],
+      steps: ["Choose a vehicle and configure an initial estimate.", "Send your contact details without sensitive documents.", "We check the required information with you.", "The finance company reviews the application and provides the final terms."],
+      faq: [
+        { question: "Who can apply?", answer: "A client with verifiable income and residence in or a connection to Slovakia. The finance company makes the final decision." },
+        { question: "Is the calculator result final?", answer: "No. It is an estimate; the rate, APR and terms may change after review." },
+        { question: "Do I send documents through this form?", answer: "No. The standard form does not accept sensitive documents. We will agree a secure handover method separately." },
+      ],
+      applyButton: "Send application",
+    },
+  },
+};

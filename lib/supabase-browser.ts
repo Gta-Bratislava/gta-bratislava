@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Car, FinancingRecord, LeadRecord, Locale, SiteSettings } from "@/lib/types";
+import type { Car, FinancingRecord, FinancingSettings, LeadRecord, Locale, SiteSettings } from "@/lib/types";
 
 export type AdminApplication = Record<string, unknown> & {
   id: string;
@@ -32,17 +32,25 @@ export function getSupabaseBrowserClient() {
 export async function loadPublicCars(): Promise<Car[]> {
   const db = getSupabaseBrowserClient();
   if (!db) return [];
-  const { data, error } = await db.from("cars").select("data,status,price,sort_order,featured,is_new,good_price,updated_at").order("sort_order", { ascending: true });
+  const { data, error } = await db.from("cars").select("data,status,price,sort_order,featured,is_new,good_price,financing_calculator_enabled,updated_at").order("sort_order", { ascending: true });
   if (error) throw error;
-  return (data ?? []).map((row) => ({ ...(row.data as Car), status: row.status as Car["status"], price: Number(row.price), sortOrder: row.sort_order, featured: row.featured, isNew: row.is_new, goodPrice: row.good_price, updatedAt: row.updated_at }));
+  return (data ?? []).map((row) => ({ ...(row.data as Car), status: row.status as Car["status"], price: Number(row.price), sortOrder: row.sort_order, featured: row.featured, isNew: row.is_new, goodPrice: row.good_price, financingCalculatorEnabled: row.financing_calculator_enabled, updatedAt: row.updated_at }));
 }
 
 export async function loadPublicCar(slug: string): Promise<Car | null> {
   const db = getSupabaseBrowserClient();
   if (!db) return null;
-  const { data, error } = await db.from("cars").select("data").eq("slug", slug).maybeSingle();
+  const { data, error } = await db.from("cars").select("data,financing_calculator_enabled").eq("slug", slug).maybeSingle();
   if (error) throw error;
-  return data?.data as Car | null;
+  return data ? { ...(data.data as Car), financingCalculatorEnabled: data.financing_calculator_enabled } : null;
+}
+
+export async function loadFinancingSettings(): Promise<FinancingSettings | null> {
+  const db = getSupabaseBrowserClient();
+  if (!db) return null;
+  const { data, error } = await db.from("financing_settings").select("id,enabled,min_amount,max_amount,min_term,max_term,allowed_terms,default_interest_rate,min_down_payment_eur,min_down_payment_percent,fixed_fee,percent_fee,localized,created_at,updated_at").eq("id", true).maybeSingle();
+  if (error) throw error;
+  return data as FinancingSettings | null;
 }
 
 export async function loadPublicContent(locale: Locale): Promise<Record<string, string>> {

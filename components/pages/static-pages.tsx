@@ -2,9 +2,9 @@ import { AlertTriangle, Aperture, ArrowRight, Camera, Check, Clock3, Mail, MapPi
 import Link from "next/link";
 import { CatalogClient } from "@/components/catalog-client";
 import { ContactForm } from "@/components/forms/contact-form";
-import { FinancingForm } from "@/components/forms/financing-form";
+import { FinancingPageClient } from "@/components/financing/financing-page-client";
 import { SectionHeading } from "@/components/section-heading";
-import { financingInfo, inspectionInfo, servicePackages } from "@/data/business-info";
+import { inspectionInfo, servicePackages } from "@/data/business-info";
 import { demoCars } from "@/data/cars";
 import { getDictionary, localizedPath } from "@/lib/i18n";
 import type { Locale } from "@/lib/types";
@@ -21,9 +21,7 @@ export function ServicesPage({ locale }: { locale: Locale }) {
 }
 
 export function FinancingPage({ locale }: { locale: Locale }) {
-  const d = getDictionary(locale);
-  const info = financingInfo[locale];
-  return <><PageHero eyebrow={d.financingPage.eyebrow} title={d.financingPage.title} lead={d.financingPage.lead}/><section className="section-pad"><div className="shell"><div className="grid gap-5 lg:grid-cols-[1.05fr_.95fr]"><article className="neon-panel rounded-[24px] p-6 sm:p-8"><ShieldCheck className="text-acid"/><h2 className="mt-6 text-2xl font-black">{info.documentsTitle}</h2><ul className="mt-6 grid gap-3">{info.documents.map((item) => <li key={item} className="flex gap-3 text-white/65"><Check className="mt-0.5 shrink-0 text-acid" size={18}/>{item}</li>)}</ul></article><div className="grid gap-5"><article className="neon-panel rounded-[24px] p-6 sm:p-8"><h2 className="text-2xl font-black">{info.termsTitle}</h2><div className="mt-6 grid gap-3 sm:grid-cols-2">{info.terms.map((term) => <div key={term.label} className="rounded-xl border border-white/10 bg-white/[.035] p-4"><p className="text-xs font-bold uppercase tracking-wider text-white/40">{term.label}</p><p className="mt-2 font-black text-acid">{term.value}</p></div>)}</div></article><article className="rounded-[20px] border border-acid/35 bg-acid/10 p-6"><h2 className="flex items-center gap-3 text-xl font-black"><AlertTriangle className="text-acid"/>{info.importantTitle}</h2><ul className="mt-4 grid gap-2 text-sm text-white/65">{info.important.map((item) => <li key={item}>• {item}</li>)}</ul></article></div></div><div className="mt-12 grid gap-8 lg:grid-cols-[.7fr_1.3fr]"><div><h2 className="section-title">{info.supportTitle}</h2><div className="mt-7 grid gap-3">{info.support.map((item, index) => <div key={item} className="flex items-center gap-3 border-t border-acid/20 pt-4"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-acid text-sm font-black text-black">{index + 1}</span><span className="font-bold">{item}</span></div>)}</div><p className="mt-8 text-sm leading-relaxed text-white/45">{d.financingPage.warning}</p></div><FinancingForm locale={locale}/></div></div></section></>;
+  return <FinancingPageClient locale={locale}/>;
 }
 
 export function AboutPage({ locale }: { locale: Locale }) { const d = getDictionary(locale); return <><PageHero eyebrow={d.about.eyebrow} title={d.about.title} lead={d.about.lead}/><section className="section-pad"><div className="shell"><div className="grid gap-5 md:grid-cols-2"><PhotoPlaceholder label={d.about.team}/><PhotoPlaceholder label={d.about.place}/></div><div className="mt-16 grid gap-10 lg:grid-cols-2"><div><div className="eyebrow text-white/50">GTA_Bratislava</div><h2 className="section-title">{d.about.approach}</h2></div><div><p className="text-xl leading-relaxed text-white/60">{d.about.approachText}</p><div className="mt-8 grid gap-3">{d.benefits.map((item) => <div key={item.title} className="flex gap-3 border-t border-acid/20 pt-4"><Check className="shrink-0 text-acid"/><div><h3 className="font-black">{item.title}</h3><p className="mt-1 text-sm text-white/50">{item.text}</p></div></div>)}</div></div></div></div></section></>; }

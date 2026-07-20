@@ -3,8 +3,11 @@ export type Locale = (typeof locales)[number];
 
 export type CarStatus = "draft" | "available" | "reserved" | "sold" | "hidden";
 export type AdminRole = "owner" | "manager" | "content_manager" | "viewer";
-export type CrmStatus = "new" | "contacted" | "appointment" | "thinking" | "financing" | "reserved" | "completed" | "rejected";
+export type CrmStatus = "new" | "contacted" | "appointment" | "thinking" | "financing" | "reserved" | "documents_requested" | "documents_received" | "submitted" | "decision_pending" | "approved" | "rejected" | "contract_signed" | "completed";
 export type AppointmentStatus = "scheduled" | "completed" | "cancelled";
+export type AdPlatform = "bazos" | "facebook" | "instagram" | "tiktok" | "whatsapp" | "telegram" | "universal";
+export type AdLength = "short" | "standard" | "detailed";
+export type AdStyle = "business" | "friendly" | "sales" | "neutral" | "premium";
 
 export interface LocalizedCarText {
   title: string;
@@ -29,9 +32,16 @@ export interface Car {
   drive: "fwd" | "rwd" | "awd";
   powerKw: number;
   engine: string;
+  version?: string;
+  engineDisplacement?: string;
+  color?: string;
+  condition?: string;
+  ownersCount?: number;
+  paintedElements?: string;
   price: number;
   monthlyPrice: number;
   financing: boolean;
+  financingCalculatorEnabled?: boolean;
   status: CarStatus;
   vin: string;
   featured: boolean;
@@ -73,8 +83,87 @@ export interface FinancingRecord {
   car_price: number;
   term_months: number;
   comment?: string;
+  selected_car_id?: string | null;
+  selected_car_slug?: string | null;
+  down_payment_percent?: number;
+  interest_rate?: number;
+  fixed_fee?: number;
+  percent_fee?: number;
+  financed_amount?: number;
+  estimated_monthly_payment?: number;
+  estimated_total_payment?: number;
+  estimated_overpayment?: number;
+  calculator_payload?: Record<string, unknown>;
   consent: boolean;
   created_at?: string;
+}
+
+export interface FinancingLocaleContent {
+  title: string;
+  description: string;
+  warning: string;
+  documents: string[];
+  steps: string[];
+  faq: { question: string; answer: string }[];
+  applyButton: string;
+}
+
+export interface FinancingSettings {
+  id: true;
+  enabled: boolean;
+  min_amount: number;
+  max_amount: number;
+  min_term: number;
+  max_term: number;
+  allowed_terms: number[];
+  default_interest_rate: number;
+  min_down_payment_eur: number;
+  min_down_payment_percent: number;
+  fixed_fee: number;
+  percent_fee: number;
+  localized: Record<Locale, FinancingLocaleContent>;
+  updated_by?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FinancingCalculationInput {
+  carPrice: number;
+  downPaymentEur: number;
+  termMonths: number;
+  annualInterestRate: number;
+  fixedFee: number;
+  percentFee: number;
+}
+
+export interface FinancingCalculation {
+  carPrice: number;
+  downPaymentEur: number;
+  downPaymentPercent: number;
+  financedAmount: number;
+  fees: number;
+  monthlyPayment: number;
+  totalPayments: number;
+  overpayment: number;
+  termMonths: number;
+  annualInterestRate: number;
+  fixedFee: number;
+  percentFee: number;
+}
+
+export interface GeneratedAd {
+  id: string;
+  car_id: string;
+  language: Locale;
+  platform: AdPlatform;
+  style: AdStyle;
+  length: AdLength;
+  title: string;
+  text: string;
+  hashtags: string[];
+  author_id: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface AdminProfile {

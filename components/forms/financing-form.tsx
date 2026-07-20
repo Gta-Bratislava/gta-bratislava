@@ -5,9 +5,9 @@ import { FormEvent, useRef, useState } from "react";
 import { getDictionary } from "@/lib/i18n";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 import { rememberSubmission, submissionIsCoolingDown, submitFinancing } from "@/lib/supabase-browser";
-import type { Locale } from "@/lib/types";
+import type { FinancingCalculation, Locale } from "@/lib/types";
 
-export function FinancingForm({ locale, initialCarPrice, carSlug }: { locale: Locale; initialCarPrice?: number; carSlug?: string }) {
+export function FinancingForm({ locale, initialCarPrice, carId, carSlug, calculation, allowedTerms, applyLabel }: { locale: Locale; initialCarPrice?: number; carId?: string; carSlug?: string; calculation?: FinancingCalculation; allowedTerms?: number[]; applyLabel?: string }) {
   const d = getDictionary(locale);
   const started = useRef(0);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -33,6 +33,17 @@ export function FinancingForm({ locale, initialCarPrice, carSlug }: { locale: Lo
         car_price: Number(raw.car_price),
         term_months: Number(raw.term_months),
         comment: String(raw.comment || "").trim(),
+        selected_car_id: carId || null,
+        selected_car_slug: carSlug || null,
+        down_payment_percent: calculation?.downPaymentPercent,
+        interest_rate: calculation?.annualInterestRate,
+        fixed_fee: calculation?.fixedFee,
+        percent_fee: calculation?.percentFee,
+        financed_amount: calculation?.financedAmount,
+        estimated_monthly_payment: calculation?.monthlyPayment,
+        estimated_total_payment: calculation?.totalPayments,
+        estimated_overpayment: calculation?.overpayment,
+        calculator_payload: calculation ? { ...calculation } : undefined,
         consent: true,
       });
       rememberSubmission("financing");
@@ -52,12 +63,12 @@ export function FinancingForm({ locale, initialCarPrice, carSlug }: { locale: Lo
       <label className="label">{d.form.citizenship}<input className="field" name="citizenship" required autoComplete="country-name" /></label>
       <label className="label">{d.form.employment}<select className="field" name="employment" required defaultValue=""><option value="" disabled>{d.form.select}</option>{d.form.employmentOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
       <label className="label">{d.form.income}<input className="field" name="monthly_income" required min="0" type="number" inputMode="decimal" /></label>
-      <label className="label">{d.form.downPayment}<input className="field" name="down_payment" required min="0" type="number" inputMode="decimal" /></label>
-      <label className="label">{d.form.carPrice}<input className="field" name="car_price" required min="1" type="number" inputMode="decimal" defaultValue={initialCarPrice} /></label>
-      <label className="label">{d.form.term}<select className="field" name="term_months" required defaultValue="60">{[12,24,36,48,60,72,84,96].map((months) => <option key={months} value={months}>{months} {d.form.months}</option>)}</select></label>
+      <label className="label">{d.form.downPayment}<input key={calculation?.downPaymentEur} className="field" name="down_payment" required min="0" type="number" inputMode="decimal" defaultValue={calculation?.downPaymentEur} readOnly={Boolean(calculation)} /></label>
+      <label className="label">{d.form.carPrice}<input key={calculation?.carPrice} className="field" name="car_price" required min="1" type="number" inputMode="decimal" defaultValue={calculation?.carPrice ?? initialCarPrice} readOnly={Boolean(calculation)} /></label>
+      <label className="label">{d.form.term}{calculation ? <><select key={calculation.termMonths} className="field" value={calculation.termMonths} disabled>{(allowedTerms || [12,24,36,48,60,72,84,96]).map((months) => <option key={months} value={months}>{months} {d.form.months}</option>)}</select><input type="hidden" name="term_months" value={calculation.termMonths}/></> : <select className="field" name="term_months" required defaultValue={60}>{(allowedTerms || [12,24,36,48,60,72,84,96]).map((months) => <option key={months} value={months}>{months} {d.form.months}</option>)}</select>}</label>
       <label className="label md:col-span-2">{d.form.comment}<textarea className="field min-h-28 resize-y" name="comment" /></label>
       <label className="flex items-start gap-3 text-sm text-white/65 md:col-span-2"><input type="checkbox" name="consent" required className="mt-1 h-5 w-5 accent-[#9dde18]"/><span>{d.form.consent}</span></label>
-      <div className="md:col-span-2"><button disabled={status === "loading"} className="btn btn-primary disabled:opacity-60" type="submit">{status === "loading" ? <Loader2 className="animate-spin" size={18}/> : <ShieldCheck size={18}/>} {status === "loading" ? d.form.sending : d.form.send}</button>{status === "success" && <p className="form-status success mt-3" role="status">{d.form.success}</p>}{status === "error" && <p className="form-status error mt-3" role="alert">{d.form.error}</p>}</div>
+      <div className="md:col-span-2"><button disabled={status === "loading"} className="btn btn-primary disabled:opacity-60" type="submit">{status === "loading" ? <Loader2 className="animate-spin" size={18}/> : <ShieldCheck size={18}/>} {status === "loading" ? d.form.sending : (applyLabel || d.form.send)}</button>{status === "success" && <p className="form-status success mt-3" role="status">{d.form.success}</p>}{status === "error" && <p className="form-status error mt-3" role="alert">{d.form.error}</p>}</div>
     </form>
   );
 }

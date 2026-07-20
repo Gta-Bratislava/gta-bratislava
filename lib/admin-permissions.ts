@@ -13,23 +13,22 @@ export type AdminPermission =
   | "settings:view"
   | "settings:edit"
   | "analytics:view"
+  | "financing:view"
+  | "financing:edit"
+  | "ads:view"
+  | "ads:edit"
+  | "ads:delete"
   | "admins:manage";
 
 const permissions: Record<AdminRole, readonly AdminPermission[]> = {
-  owner: ["dashboard:view", "cars:view", "cars:edit_content", "cars:edit_commercial", "cars:delete", "crm:view", "crm:edit", "calendar:view", "calendar:edit", "settings:view", "settings:edit", "analytics:view", "admins:manage"],
-  manager: ["dashboard:view", "cars:view", "cars:edit_content", "cars:edit_commercial", "crm:view", "crm:edit", "calendar:view", "calendar:edit", "analytics:view"],
-  content_manager: ["dashboard:view", "cars:view", "cars:edit_content", "settings:view", "settings:edit", "analytics:view"],
-  viewer: ["dashboard:view", "cars:view", "analytics:view"],
+  owner: ["dashboard:view", "cars:view", "cars:edit_content", "cars:edit_commercial", "cars:delete", "crm:view", "crm:edit", "calendar:view", "calendar:edit", "settings:view", "settings:edit", "analytics:view", "financing:view", "financing:edit", "ads:view", "ads:edit", "ads:delete", "admins:manage"],
+  manager: ["dashboard:view", "cars:view", "cars:edit_content", "cars:edit_commercial", "crm:view", "crm:edit", "calendar:view", "calendar:edit", "analytics:view", "financing:view", "financing:edit", "ads:view", "ads:edit", "ads:delete"],
+  content_manager: ["dashboard:view", "cars:view", "cars:edit_content", "settings:view", "settings:edit", "analytics:view", "ads:view", "ads:edit", "ads:delete"],
+  viewer: ["dashboard:view", "cars:view", "analytics:view", "financing:view", "ads:view"],
 };
 
 export function can(role: AdminRole, permission: AdminPermission) {
   return permissions[role].includes(permission);
 }
 
-export const roleLabels: Record<AdminRole, string> = {
-  owner: "Owner",
-  manager: "Manager",
-  content_manager: "Content manager",
-  viewer: "Viewer",
-};
-
+export { adminRoleLabels as roleLabels } from "@/lib/admin-i18n";
